@@ -10,188 +10,23 @@ import java.util.*;
   This server interacts between clients and the bookstore database. It is responsible for handling the client operations of buy, search, and lookup, as well as server specific operations that include log, restock, and update. 
 */
 
-public class Server {
+public class Peer {
 
     // global variables for stateful server
     static HashMap<Integer, Integer> purchaselog;
     static Connection c = null;
 
-    // Client operation- buy book with the same id # if stock > 0, decrementing stock after purchase 
-    public Integer[] buy(int id) {
-
-	Statement stmt = null;
-	ResultSet rset;
-	String query;
-	int success = 0;
-	try{
-	    // Check if ID exists and stock > 0
-	    stmt = c.createStatement();
-	    query = "SELECT * FROM BOOKS WHERE (ID = " + id + " AND STOCK > 0);";
-	    rset = stmt.executeQuery(query);
-
-	    if (rset != null) {
-		// Decrement stock of book to be purchased
-		stmt = c.createStatement();
-		query = "UPDATE BOOKS SET STOCK = STOCK - 1 WHERE ID = " + id + ";";
-		stmt.executeUpdate(query);
-
-		// Update log of book purchased		
-		purchaselog.put(id, purchaselog.get(id)+1);	
-		success = 1;	    
-	    }
-	} catch (Exception e) {
-	    System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-	}
-
-	// return 1 if success, 0 otherwise 
-	Integer[] array = new Integer[1];
-	array[0] = new Integer(success);
-	return array; 
-    }
-
-    // Client search operation, returns all books that match the specified topic in the database 
-    public Vector<String> search(String topic) {
-	
-	Statement stmt = null;
-	String query;
-	ResultSet rset;
-	Vector<String> vec = new Vector<String>(); 
-
-	try{
-	    // Get books that match the topic
-	    stmt = c.createStatement();
-	    query = "SELECT * FROM BOOKS WHERE TOPIC = '" + topic + "';";
-	    rset = stmt.executeQuery(query);
-	    
-	    ResultSetMetaData rsmd = rset.getMetaData();
-	    int colNum = rsmd.getColumnCount();
-
-	    // Create string of info for each book, add to vector to be returned 
-	    while(rset.next()) {
-		String entry = "";
-		for(int i = 1; i <= colNum; i++) {
-		    if(i>1) {
-			entry = entry + ", ";
-		    }
-		    String colVal = rset.getString(i);
-		    entry = entry + colVal + " "+ rsmd.getColumnName(i);
-		}
-		vec.add(entry);
-	    }
-	} catch (Exception e) {
-	    System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-	}
-	return vec;
-    }
-
-    // Client lookup operation, returns details of the book matching the id
-    public Vector<String> lookup(int id) {
-	
-	Statement stmt = null;
-	String query;
-	ResultSet rset;
-	Vector<String> vec = new Vector<String>();
-
-	try{
-	    // Select the books in the database that match the id
-	    stmt = c.createStatement();
-	    query = "SELECT * FROM BOOKS WHERE ID = " + id + ";";
-	    rset = stmt.executeQuery(query);
-
-	    ResultSetMetaData rsmd = rset.getMetaData();
-	    int colNum = rsmd.getColumnCount();
-
-	    // Create string of info for book, add to vector to be returned 
-	    while(rset.next()) {
-		String entry = "";
-		for(int i = 1; i <= colNum; i++) {
-		    if(i>1) {
-			entry = entry + ", ";
-		    }
-		    String colVal = rset.getString(i);
-		    entry = entry + colVal + " "+ rsmd.getColumnName(i);
-		}
-		vec.add(entry);
-	    }
-	} catch (Exception e) {
-	    System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-	}
-	return vec;
-    }
-    
-    // Helper method for debugging that prints out table in database
-    public static void printTable() {
-	Statement stmt = null;
-	String query;
-	ResultSet rset;
-
-	try{
-	    stmt = c.createStatement();
-	    query = "SELECT * FROM BOOKS ORDER BY ID";
-	    rset = stmt.executeQuery(query);
-	    ResultSetMetaData rsmd = rset.getMetaData();
-	    int colNum = rsmd.getColumnCount();
-
-	    while(rset.next()) {
-		for(int i = 1; i <= colNum; i++) {
-		    if(i>1) System.out.print(", ");
-		    String colVal = rset.getString(i);
-		    System.out.print(colVal + " "+ rsmd.getColumnName(i));
-		}
-		System.out.println(""); 
-	    }
-	} catch (Exception e) {
-	    System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-	}
-    }
-    
-    // Server operation, prints out current running log of book purchases (ID, # bought) 
-    public static void log() {
-	purchaselog.entrySet().forEach(entry->{
-		System.out.println(entry.getKey() + " " + entry.getValue());
-	    });
+    public Peer(int port) {
 	
     }
-
-    // Server operation, adds 10 to the stock for each book
-    public static void restock() {
-	
-	Statement stmt = null;
-	String query;
-
-	try{
-	    stmt = c.createStatement();
-	    query = "UPDATE BOOKS SET STOCK = STOCK + 10;";	    
-	    stmt.executeUpdate(query);
-	    printTable(); 
-	} catch (Exception e) {
-	    System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-	}
-    }
-
-    // Server operation, update a given book's price 
-    public static void update (int ID, float price) {
-
-	Statement stmt = null;
-	String query;
-
-	try{
-	    stmt = c.createStatement();
-	    query = "UPDATE BOOKS SET PRICE = " + price + " WHERE ID = " + ID + ";";	    
-	    stmt.executeUpdate(query);
-	    printTable();
-	} catch (Exception e) {
-	    System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-	}
-    }
-
+     
     // Set up server and interface to allow operations from stdin and clients 
     public static void main (String [] args) {
 	try {
 	    // Create connection to the database
-	    Class.forName("org.sqlite.JDBC");
-	    c = DriverManager.getConnection("jdbc:sqlite:bookstore.db");
-	    c.setAutoCommit(false);
+	    //Class.forName("org.sqlite.JDBC");
+	    //c = DriverManager.getConnection("jdbc:sqlite:bookstore.db");
+	    //c.setAutoCommit(false);
 	    
 	    PropertyHandlerMapping phm = new PropertyHandlerMapping();
 	    XmlRpcServer xmlRpcServer;
