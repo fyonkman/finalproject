@@ -9,7 +9,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
   This is a java implementation of a client that can interact with the bookstore database through the server. It can use the buy, search, lookup, and exit operations. 
  */
 public class JClient {
-
+ 
     // Helper method to handle buy command; if test == 1, server side purchase successful  
     public static void buy(String[] param, XmlRpcClient client) {
 	try {
@@ -86,6 +86,7 @@ public class JClient {
 		System.out.println("Problem connecting to server!");
 		System.exit(0); 
 	    }
+
 	    System.out.println("Accepting requests (Commands = buy id, search topic, lookup id, exit)");
 	    
 	    //String param[] = new String[3];
