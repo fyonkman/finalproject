@@ -17,7 +17,9 @@ import java.io.File;
 */
 /*
   To Do:
-
+  - figure out how to split file
+  - how to piece together spilt file
+  - how to send pieces accross the various peers 
 */
 
 public class Peer {
@@ -59,9 +61,6 @@ public class Peer {
     //in the future, returning a String[] may be useful for when we split file
     public String get(String fileName) {
 	System.out.println("In send");
-	// see if file exists
-	// open file
-	// read line by line, send contents
 	String result = "";
 	try{
 	    File file = new File("./test.txt");
@@ -79,7 +78,42 @@ public class Peer {
 	}
 	return result;
     }
+    /*
+    // split input of file into numNodes
+    // still need list of open nodes we can send to... can hard code for testing purposes for now 
+    public String splitFile(String fileName, int numNodes) {
 
+	try {
+	    File file = new File("./" + fileName);
+	    byte[] fileContent = Files.readAllBytes(file.toPath());
+	    
+	    // get size of file
+	    long size = file.length();
+	    long bytesPerSplit = size/(numNodes-1);
+	    long leftOverBytes = size%(numNodes-1);
+
+	    // send each portion to a different client connection, as a string
+	    // index into list of node names based on numNodes (need global var of connected nodes)
+	    int splitNum = 0; 
+	    while(splitNum < numNodes) {
+		// create string from first 0-(bytesPerSplit-1) and send to first intermediary node
+		byte[] temp = new byte[bytesPerSplit];
+		// make this for loop a factor of splitNum so can run in while loop 
+		for(int i = 0; i < bytesPerSplit; i++) {
+		    temp[i] = fileContent[i];
+		}
+		String output = new String(temp);
+		// send output to intermediary node, repeat process
+			
+		splitNum++; 
+	    }
+		
+	} catch (Exception e) {
+	    System.out.println("Problem splitting file.");
+	}
+    }
+    */ 
+    
     // Create peers, connect them, send messages....
     public static void main (String [] args) {
 	//could read in peer hostnames if desired
