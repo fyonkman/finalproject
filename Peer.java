@@ -26,7 +26,8 @@ import java.io.BufferedInputStream;
 
 public class Peer {
 
-    static XmlRpcClient peer = null;
+    //static XmlRpcClient peer = null;
+    static HashMap<String, XmlRpcClient> peerList;
     
     // connect to another peer specified by port number 
     public static int connect(String host, String myName) {
@@ -37,8 +38,9 @@ public class Peer {
 	    config.setServerURL(new URL("http://"+host+":" + 9173));
 	    // host may need to be passed through as parameter... TBD 
 	    // config.setServerURL(new URL("http://" + host + ":" + port));
-	    peer = new XmlRpcClient();
+	    XmlRpcClient peer = new XmlRpcClient();
 	    peer.setConfig(config);
+	    peerList.put(host, peer);
 	    System.out.println("connected");
 	    
 	} catch (Exception e) {   
@@ -118,7 +120,23 @@ public class Peer {
 	}
 	return "splitFile complete!";
     }
-    
+
+    //pass file to destination peer
+     public void passOnFile(String splitFile, String destinationPeer) {
+	 try{
+	     System.out.println("beginning of pass on file");
+	     Object[] params = {splitFile};
+	     //peer should be destination peer
+	     peerList.get(destinationPeer).execute("peer.receive", params);
+	     System.out.println("passed on file");
+	 } catch (Exception e) {
+	     System.out.println("Problem passing the file.");
+	 }
+     }
+
+    public void receive(String splitFile) {
+	System.out.println(splitFile);
+    }
     
     // Create peers, connect them, send messages....
     public static void main (String [] args) {
@@ -136,6 +154,8 @@ public class Peer {
 	    xmlRpcServer.setHandlerMapping(phm);
 	    server.start();
 	    System.out.println("Peer started successfully on port 9173 on "+InetAddress.getLocalHost().getHostName());
+	    //initialize peer hashmap
+	    peerList = new HashMap<>();
 
 	    Scanner in = new Scanner(System.in);
 	    while(true) {
@@ -147,18 +167,29 @@ public class Peer {
 		} else if (first.equals("hello")) {
 		    Object obj = null;
 		    Object[] params = {"DEONI"};
-		    obj = peer.execute("peer.sayHello", params);
+		    //obj = peer.execute("peer.sayHello", params);
 		    System.out.println(obj);
 		} else if (first.equals("get")) {
 		    Object obj = null;
 		    Object[] params = {st.nextToken()};
-		    obj = peer.execute("peer.get", params);
+		    //obj = peer.execute("peer.get", params);
 		    System.out.println(obj);
 		} else if (first.equals("split")) {
 		    Object obj = null;
 		    Object[] params = {st.nextToken(), 3};
-		    obj = peer.execute("peer.splitFile", params);
+		    String cPeer = st.nextToken();
+		    System.out.println("cpeer is " + cPeer);
+		    XmlRpcClient connectedPeer = peerList.get(cPeer);
+		    obj = connectedPeer.execute("peer.splitFile", params);
 		    System.out.println(obj);
+		} else if (first.equals("pass")) {
+		    //Object[] params = {"test text", InetAddress.getLocalHost().getHostName()};
+		    Object[] params = {"test text", "senepol"};
+		    String cpeer = st.nextToken();
+		    System.out.println(cpeer);
+		    XmlRpcClient conPeer = peerList.get(cpeer);
+		    conPeer.execute("peer.passOnFile", params);
+		    System.out.println("pass on file complete");
 		}
 	    }
 
