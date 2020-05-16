@@ -2,7 +2,6 @@ import org.apache.xmlrpc.webserver.WebServer;
 import org.apache.xmlrpc.server.XmlRpcServer;
 import org.apache.xmlrpc.server.PropertyHandlerMapping;
 import org.apache.xmlrpc.XmlRpcException;
-import java.sql.*;
 import java.util.*;
 import java.net.URL;
 import org.apache.xmlrpc.*;
@@ -10,6 +9,9 @@ import org.apache.xmlrpc.client.XmlRpcClient;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 import java.net.InetAddress;
 import java.io.File;
+import java.nio.file.Files;
+import java.io.FileInputStream; 
+import java.io.BufferedInputStream;
 
 // Fiona and Emma 2020
 /*
@@ -78,41 +80,45 @@ public class Peer {
 	}
 	return result;
     }
-    /*
+    
     // split input of file into numNodes
     // still need list of open nodes we can send to... can hard code for testing purposes for now 
     public String splitFile(String fileName, int numNodes) {
-
 	try {
 	    File file = new File("./" + fileName);
-	    byte[] fileContent = Files.readAllBytes(file.toPath());
-	    
+	    //byte[] fileContent = Files.readAllBytes(file.toPath());	    
 	    // get size of file
 	    long size = file.length();
-	    long bytesPerSplit = size/(numNodes-1);
-	    long leftOverBytes = size%(numNodes-1);
+	    int bytesPerSplit = ((int)size)/numNodes;
 
-	    // send each portion to a different client connection, as a string
-	    // index into list of node names based on numNodes (need global var of connected nodes)
-	    int splitNum = 0; 
-	    while(splitNum < numNodes) {
-		// create string from first 0-(bytesPerSplit-1) and send to first intermediary node
-		byte[] temp = new byte[bytesPerSplit];
-		// make this for loop a factor of splitNum so can run in while loop 
-		for(int i = 0; i < bytesPerSplit; i++) {
-		    temp[i] = fileContent[i];
+	    byte[] buffer = new byte[bytesPerSplit];
+
+	    try (FileInputStream fis = new FileInputStream(file);
+		 BufferedInputStream bis = new BufferedInputStream(fis)) {
+
+		int nodesSent = 0;
+		int bytesAmount = 0;
+		while ((bytesAmount = bis.read(buffer)) > 0) {		    
+		    String output = new String(buffer); 
+		    // send output
+		    if(nodesSent == numNodes-1) {
+			bytesAmount = bis.read(buffer);
+			String end = new String(buffer);
+			end = end.substring(0, bytesAmount);
+			output = output + end;
+			System.out.println(output);
+			break;
+		    }		    
+		    System.out.println(output); 
+		    nodesSent++;
 		}
-		String output = new String(temp);
-		// send output to intermediary node, repeat process
-			
-		splitNum++; 
-	    }
-		
+	    }	
 	} catch (Exception e) {
 	    System.out.println("Problem splitting file.");
 	}
+	return "splitFile complete!";
     }
-    */ 
+    
     
     // Create peers, connect them, send messages....
     public static void main (String [] args) {
@@ -147,6 +153,11 @@ public class Peer {
 		    Object obj = null;
 		    Object[] params = {st.nextToken()};
 		    obj = peer.execute("peer.get", params);
+		    System.out.println(obj);
+		} else if (first.equals("split")) {
+		    Object obj = null;
+		    Object[] params = {st.nextToken(), 3};
+		    obj = peer.execute("peer.splitFile", params);
 		    System.out.println(obj);
 		}
 	    }
