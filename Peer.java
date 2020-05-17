@@ -18,9 +18,15 @@ import java.io.BufferedInputStream;
   Description
 */
 
+/*
+  To Do:
+  - have output actually go to a new file (create file) 
+ */
+
 public class Peer {
 
-    // make port number a final int global var? 
+    // port number 
+    private static final int port = 9173; 
     // list of active connections to other peers
     static HashMap<String, XmlRpcClient> peerList;
 
@@ -35,7 +41,7 @@ public class Peer {
 	XmlRpcClientConfigImpl config = new XmlRpcClientConfigImpl();
 	try {
 	    // connect to host on port 9173
-	    config.setServerURL(new URL("http://"+host+":" + 9173));
+	    config.setServerURL(new URL("http://"+host+":" + port));
 	    XmlRpcClient peer = new XmlRpcClient();
 	    peer.setConfig(config);
 	    peerList.put(host, peer);
@@ -49,56 +55,10 @@ public class Peer {
     }
 
     /*
-      Test method: prints out and returns hello
-     */
-    public String sayHello(String peer) {
-	try {
-	    System.out.println("saying hello to "+peer);
-	    return "hello "+peer+"!";
-	} catch (Exception e) {
-	    System.out.println("Problem connecting to server!");
-	}
-	return "";
-    }    
-
-    /*
-    // locate file, read contents of file, return it
-    public String get(String fileName) {
-	System.out.println("In send");
-	String result = "";
-	try{
-	    File file = new File("./test.txt");
-	    if(file.exists()){
-		Scanner sc = new Scanner(file);
-
-		while (sc.hasNextLine()){
-		    result = result + sc.nextLine();
-		}
-	    } else {
-		System.out.println("File not found.");
-	    }
-	} catch (Exception e) {
-	    System.out.println("Problem with get method.");
-	}
-	return result;
-    }
-    */
-    
-    /*
       Splits input of file into numNodes, sends to intermediary nodes via passFile method
      */
     public String splitFile(String fileName, int numNodes, String destPeer) {
-	try {
-	    /*
-	    Object obj = null;
-	    Object[] params = {fileName, "lohani"};
-	    // get destination peer from peerList
-	    XmlRpcClient destPeer = peerList.get("deoni");
-	    // pass input to final node as parameter
-	    obj = destPeer.execute("peer.passFile", params);
-	    return "";
-	    */
-	    
+	try {	    
 	    File file = new File("./" + fileName);
 
 	    // get size of file and determine size of each file chunk
@@ -114,11 +74,11 @@ public class Peer {
 		// bytes read in 
 		int bytesAmount = 0;
 
+		// array of peers that can be used as intermediaries 
 		Object[] intermPeers = peerList.values().toArray(); 
 		
 		while ((bytesAmount = bis.read(buffer)) > 0) {		    		   
 		    String output = new String(buffer);
-
 		    // if last node, tack on remainder of bytes from file
 		    if(nodesSent == numNodes-1) {
 			bytesAmount = bis.read(buffer);
@@ -133,9 +93,10 @@ public class Peer {
 		    Object[] params = {output, nodesSent+1, destPeer, numNodes};
 		    // get intermediary peer from peer list, assume number of connections >= numNodes/file pieces
 		    XmlRpcClient intermPeer = (XmlRpcClient)intermPeers[nodesSent];
+
 		    // pass file piece to middle node as parameter
 		    obj = intermPeer.execute("peer.passFile", params);
-		    System.out.println(output);
+		    // break on last node
 		    if(nodesSent == numNodes-1) {break;}
 		    nodesSent++;
 		}
@@ -144,7 +105,7 @@ public class Peer {
 	} catch (Exception e) {
 	    System.out.println("Problem splitting file.");
 	}
-	return "splitFile complete!";
+	return "SplitFile complete!";
     }
 
     /*
@@ -152,30 +113,30 @@ public class Peer {
      */
     public String passFile(String splitFile, int locationNum, String destinationPeer, int numNodes) {
 	try{
-	    System.out.println("beginning of pass on file");
-	    System.out.println("Piece is: " + splitFile);
-	    System.out.println("Location num: " + locationNum + "\nDestination peer: " + destinationPeer + "\nNumNodes: " + numNodes);  
+	    System.out.println("Piece being passed is: " + splitFile);
+	    System.out.println("Location num: " + locationNum + "\nDestination peer: " + destinationPeer + "\nNumNodes: " + numNodes);
+	    
 	    Object obj = null; 
 	    Object[] params = {splitFile, locationNum, numNodes};
 	    // get destination peer from peerList 
 	    XmlRpcClient destPeer = peerList.get(destinationPeer);
 	    // pass input to final node as parameter 
 	    obj = destPeer.execute("peer.receive", params);
-	    System.out.println("passed on file");
+	    System.out.println("Passed on file.");
 	} catch (Exception e) {
 	    System.out.println("Problem passing the file.");
 	    System.err.println("PassFile: " + e);
 	}
-	return "passFile complete!"; 
+	return "PassFile complete!"; 
     }
 
     /*
       Receives input, places into hashmap, to be reasssembled at the end 
      */
     public String receive(String splitFile, int locationNum, int totalPieces) {
-	System.out.println("Recieve input: " + splitFile);
 	filePieces.put(locationNum, splitFile);
 
+	// once last piece is added, print out final output of file
 	if(filePieces.size() == totalPieces) {
 	    String finalFile = "";
 	    for(int i = 1; i <= totalPieces; i++) {
@@ -189,18 +150,15 @@ public class Peer {
     }
     
     /*
-      Creates server for the peer, handles command line input of.... (NEED TO FILL IN BASED ON FINAL COMMANDS WE CHOOSE) 
+      Creates server for the peer, handles command line input for 'split fileName numNodes peerWithFile' and 'connect nodeName' 
      */
     public static void main (String [] args) {
-	//could read in peer hostnames if desired
-	//int num = Integer.valueOf(args[0]).intValue();
-	//int port = Integer.valueOf(args[1]).intValue();
 	try {
 	    PropertyHandlerMapping phm = new PropertyHandlerMapping();
 	    XmlRpcServer xmlRpcServer;
 
 	    // Set up the webserver
-	    WebServer server = new WebServer(9173);
+	    WebServer server = new WebServer(port);
 	    xmlRpcServer = server.getXmlRpcServer();
 	    phm.addHandler("peer", Peer.class);
 	    xmlRpcServer.setHandlerMapping(phm);
@@ -219,42 +177,24 @@ public class Peer {
 		StringTokenizer st = new StringTokenizer(s);
 		String first = st.nextToken();
 		if (first.equals("connect")) {
-		    connect(st.nextToken(), InetAddress.getLocalHost().getHostName());
-		} else if (first.equals("hello")) {
-		    Object obj = null;
-		    Object[] params = {"DEONI"};
-		    //obj = peer.execute("peer.sayHello", params);
-		    System.out.println(obj);
-		} else if (first.equals("get")) {
-		    Object obj = null;
-		    Object[] params = {st.nextToken()};
-		    //obj = peer.execute("peer.get", params);
-		    System.out.println(obj);
+		    connect(st.nextToken(), InetAddress.getLocalHost().getHostName());               
 		} else if (first.equals("split")) {
-		    // command line args: split fileName peerWithFile
+		    // command line args needed: split fileName numNodes peerWithFile
 		    Object obj = null;
 		    String fileName = st.nextToken();
 		    int numNodes = Integer.parseInt(st.nextToken());
 		    String myName = InetAddress.getLocalHost().getHostName();
 		    // isolate lab machine name
 		    myName = myName.substring(0, myName.indexOf(".")); 
+
+		    // execute splitFile call on node that has the file (cPeer)
 		    Object[] params = {fileName, numNodes, myName};
-		    // cPeer is the peer that has the file the current node wants
 		    String cPeer = st.nextToken();
-		    System.out.println("cpeer is " + cPeer);
 		    XmlRpcClient connectedPeer = peerList.get(cPeer);
 		    obj = connectedPeer.execute("peer.splitFile", params);
 		    System.out.println(obj);
-		} else if (first.equals("pass")) {
-		    // command line args: pass peerWithFile
-		    //Object[] params = {"test text", InetAddress.getLocalHost().getHostName()};
-		    Object obj = null; 
-		    Object[] params = {"test text", "limia"};
-		    String cPeer = st.nextToken();
-		    //System.out.println(cPeer);
-		    XmlRpcClient conPeer = peerList.get(cPeer);
-		    obj = conPeer.execute("peer.passFile", params);
-		    System.out.println("pass on file complete");
+		} else {
+		    System.out.println("Please type 'split fileName numNodes peerWithFile' or 'connect nodeName'.");
 		}
 	    }
 
