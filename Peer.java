@@ -15,19 +15,17 @@ import java.io.BufferedInputStream;
 
 // Fiona and Emma 2020
 /*
-  Running Questions:
-*/
-/*
-  To Do:
-  - how to piece together spilt file
-  - how to send pieces accross the various peers 
+  Description
 */
 
 public class Peer {
 
     // make port number a final int global var? 
-    
+    // list of active connections to other peers
     static HashMap<String, XmlRpcClient> peerList;
+
+    // key determines number ordering for file pieces to put back together 
+    static HashMap<Integer, String> filePieces; 
 
     /*
       Creates a peer connection to 'host', adds connection to PeerList  
@@ -89,15 +87,25 @@ public class Peer {
     /*
       Splits input of file into numNodes, sends to intermediary nodes via passFile method
      */
-    public String splitFile(String fileName, int numNodes) {
+    public String splitFile(String fileName, int numNodes, String destPeer) {
 	try {
+	    /*
+	    Object obj = null;
+	    Object[] params = {fileName, "lohani"};
+	    // get destination peer from peerList
+	    XmlRpcClient destPeer = peerList.get("deoni");
+	    // pass input to final node as parameter
+	    obj = destPeer.execute("peer.passFile", params);
+	    return "";
+	    */
+	    
 	    File file = new File("./" + fileName);
 
 	    // get size of file and determine size of each file chunk
 	    long size = file.length();
 	    int bytesPerSplit = ((int)size)/numNodes;
 	    byte[] buffer = new byte[bytesPerSplit];
-
+	    
 	    // create buffered input stream based on file, split and send contents by chunk sizes
 	    try (FileInputStream fis = new FileInputStream(file);
 		 BufferedInputStream bis = new BufferedInputStream(fis)) {
@@ -106,26 +114,33 @@ public class Peer {
 		// bytes read in 
 		int bytesAmount = 0;
 
+		Object[] intermPeers = peerList.values().toArray(); 
+		
 		while ((bytesAmount = bis.read(buffer)) > 0) {		    		   
 		    String output = new String(buffer);
 
-		    //*** NEED TO HANDLE CASE WHEN SIZE OF FILE IS EXACTLY DIVISIBLE SO NO REMAINDER
-		    // Add to the if statement: & ((bytesAmount = bis.read(buffer)) != 0) and remove first line after if statement?
 		    // if last node, tack on remainder of bytes from file
 		    if(nodesSent == numNodes-1) {
 			bytesAmount = bis.read(buffer);
-			String end = new String(buffer);
-			end = end.substring(0, bytesAmount);
-			output = output + end;
-			System.out.println(output);
-			break;
+			// tack on remainder of bytes 
+			if(bytesAmount > 0) {
+			    String end = new String(buffer);
+			    end = end.substring(0, bytesAmount);
+			    output = output + end;
+			}			
 		    }		    
-
-		    // Here I think we go ahead and send by calling pass file :) 
-		    System.out.println(output); 
+		    Object obj = null;
+		    Object[] params = {output, nodesSent+1, destPeer, numNodes};
+		    // get intermediary peer from peer list, assume number of connections >= numNodes/file pieces
+		    XmlRpcClient intermPeer = (XmlRpcClient)intermPeers[nodesSent];
+		    // pass file piece to middle node as parameter
+		    obj = intermPeer.execute("peer.passFile", params);
+		    System.out.println(output);
+		    if(nodesSent == numNodes-1) {break;}
 		    nodesSent++;
 		}
-	    }	
+	    }
+	    	
 	} catch (Exception e) {
 	    System.out.println("Problem splitting file.");
 	}
@@ -135,11 +150,13 @@ public class Peer {
     /*
       Intermediary method that passes input through middle node to the destination node
      */
-    public String passFile(String splitFile, String destinationPeer) {
+    public String passFile(String splitFile, int locationNum, String destinationPeer, int numNodes) {
 	try{
 	    System.out.println("beginning of pass on file");
+	    System.out.println("Piece is: " + splitFile);
+	    System.out.println("Location num: " + locationNum + "\nDestination peer: " + destinationPeer + "\nNumNodes: " + numNodes);  
 	    Object obj = null; 
-	    Object[] params = {splitFile};
+	    Object[] params = {splitFile, locationNum, numNodes};
 	    // get destination peer from peerList 
 	    XmlRpcClient destPeer = peerList.get(destinationPeer);
 	    // pass input to final node as parameter 
@@ -155,10 +172,19 @@ public class Peer {
     /*
       Receives input, places into hashmap, to be reasssembled at the end 
      */
-    public String receive(String splitFile) {
-	System.out.println(splitFile);
-	// add pieces to hashmap of final file pieces
-	// if size of hashmap is equal to total number of pieces, print out final output and done!
+    public String receive(String splitFile, int locationNum, int totalPieces) {
+	System.out.println("Recieve input: " + splitFile);
+	filePieces.put(locationNum, splitFile);
+
+	if(filePieces.size() == totalPieces) {
+	    String finalFile = "";
+	    for(int i = 1; i <= totalPieces; i++) {
+		finalFile = finalFile + filePieces.get(i);
+	    }
+	    System.out.print("The final file is:\n" + finalFile);
+	    // later we can actually create new file and place input into it
+	}
+
 	return "Receive done!"; 
     }
     
@@ -184,6 +210,9 @@ public class Peer {
 	    //initialize peer hashmap
 	    peerList = new HashMap<>();
 
+	    // initialize file pieces hashmap
+	    filePieces = new HashMap<>();
+
 	    Scanner in = new Scanner(System.in);
 	    while(true) {
 		String s = in.nextLine();
@@ -204,7 +233,13 @@ public class Peer {
 		} else if (first.equals("split")) {
 		    // command line args: split fileName peerWithFile
 		    Object obj = null;
-		    Object[] params = {st.nextToken(), 3};
+		    String fileName = st.nextToken();
+		    int numNodes = Integer.parseInt(st.nextToken());
+		    String myName = InetAddress.getLocalHost().getHostName();
+		    // isolate lab machine name
+		    myName = myName.substring(0, myName.indexOf(".")); 
+		    Object[] params = {fileName, numNodes, myName};
+		    // cPeer is the peer that has the file the current node wants
 		    String cPeer = st.nextToken();
 		    System.out.println("cpeer is " + cPeer);
 		    XmlRpcClient connectedPeer = peerList.get(cPeer);
