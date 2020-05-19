@@ -15,13 +15,8 @@ import java.io.BufferedInputStream;
 
 // Fiona and Emma 2020
 /*
-  Description
+  This class is a peer for the implementation of our peer-to-peer system. The goal of this system is to allow a peer to request a file from another peer. This file gets split and the parts are sent to intermediary peers in the system in order to maximize speed of transfer and ultimately minimize bandwidth usage between the destination peer and the peer with the file. 
 */
-
-/*
-  To Do:
-  - have output actually go to a new file (create file) 
- */
 
 public class Peer {
 
@@ -29,7 +24,6 @@ public class Peer {
     private static final int port = 9173; 
     // list of active connections to other peers
     static HashMap<String, XmlRpcClient> peerList;
-
     // key determines number ordering for file pieces to put back together 
     static HashMap<Integer, String> filePieces; 
 
@@ -45,7 +39,7 @@ public class Peer {
 	    XmlRpcClient peer = new XmlRpcClient();
 	    peer.setConfig(config);
 	    peerList.put(host, peer);
-	    System.out.println(myName + "is successfully connected to " + host);
+	    System.out.println(myName + " is successfully connected to " + host);
 	    
 	} catch (Exception e) {   
 	    System.out.println("Problem connecting to " + host);
@@ -143,7 +137,7 @@ public class Peer {
 		finalFile = finalFile + filePieces.get(i);
 	    }
 	    System.out.print("The final file is:\n" + finalFile);
-	    // later we can actually create new file and place input into it
+	    // Here we should reset the hashmap of file pieces so can handle next file request... 
 	}
 
 	return "Receive done!"; 
